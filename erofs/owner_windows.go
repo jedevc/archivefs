@@ -28,3 +28,11 @@ func getOwner(fi fs.FileInfo) (uid, gid int) {
 
 	return
 }
+
+func getNLinks(_ fs.FileInfo) int {
+	return 1
+}
+
+func getIno(_ fs.FileInfo) uint64 {
+	return 0
+}

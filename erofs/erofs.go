@@ -36,9 +36,10 @@ import (
 )
 
 var (
-	_ fs.FS        = (*Filesystem)(nil)
-	_ fs.ReadDirFS = (*Filesystem)(nil)
-	_ fs.StatFS    = (*Filesystem)(nil)
+	_ fs.FS         = (*Filesystem)(nil)
+	_ fs.ReadDirFS  = (*Filesystem)(nil)
+	_ fs.StatFS     = (*Filesystem)(nil)
+	_ fs.ReadLinkFS = (*Filesystem)(nil)
 )
 
 type Filesystem struct {
@@ -147,9 +148,7 @@ func (fsys *Filesystem) ReadLink(name string) (string, error) {
 	return ino.Readlink()
 }
 
-// StatLink returns a FileInfo describing the file without following any symbolic links.
-// Experimental implementation of: https://github.com/golang/go/issues/49580
-func (fsys *Filesystem) StatLink(name string) (fs.FileInfo, error) {
+func (fsys *Filesystem) Lstat(name string) (fs.FileInfo, error) {
 	de, err := fsys.resolve(name, true)
 	if err != nil {
 		return nil, err
@@ -164,6 +163,12 @@ func (fsys *Filesystem) StatLink(name string) (fs.FileInfo, error) {
 		name:  de.name,
 		inode: ino,
 	}, nil
+}
+
+// StatLink returns a FileInfo describing the file without following any symbolic links.
+// Experimental implementation of: https://github.com/golang/go/issues/49580
+func (fsys *Filesystem) StatLink(name string) (fs.FileInfo, error) {
+	return fsys.Lstat(name)
 }
 
 func (fsys *Filesystem) resolve(name string, noResolveLastSymlink bool) (*dirEntry, error) {
