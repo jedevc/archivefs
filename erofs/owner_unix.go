@@ -42,6 +42,10 @@ func getNLinks(fi fs.FileInfo) int {
 		stat := fi.Sys().(*syscall.Stat_t)
 
 		return int(stat.Nlink)
+	case *Inode:
+		inode := fi.Sys().(*Inode)
+
+		return int(inode.Nlink())
 	}
 
 	return 1
@@ -53,6 +57,10 @@ func getIno(fi fs.FileInfo) uint64 {
 		stat := fi.Sys().(*syscall.Stat_t)
 
 		return stat.Ino
+	case *Inode:
+		inode := fi.Sys().(*Inode)
+
+		return inode.Nid()
 	}
 
 	return 0
