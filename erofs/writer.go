@@ -55,6 +55,7 @@ type writer struct {
 	dst        io.WriterAt
 	inodes     map[string]any
 	inodeOrder []string
+	linkMap    map[uint64]inodeCount
 	opts       ErofsCreateOptions
 }
 
@@ -63,9 +64,9 @@ type inodeCount struct {
 	Inode uint64
 }
 
-var fsToErofsLinkMap = map[uint64]inodeCount{}
-
 func (w *writer) write() error {
+	w.linkMap = map[uint64]inodeCount{}
+
 	if err := w.populateInodes(); err != nil {
 		return fmt.Errorf("failed to populate inodes: %w", err)
 	}
@@ -171,20 +172,20 @@ func (w *writer) firstPass() (metaSize, dataSize int64, err error) {
 				}
 				fsIno := getIno(info)
 
-				if entry, ok := fsToErofsLinkMap[fsIno]; ok {
-					if fsToErofsLinkMap[fsIno].Count == 0 {
+				if entry, ok := w.linkMap[fsIno]; ok {
+					if w.linkMap[fsIno].Count == 0 {
 						ino.Ino = nid
 						entry.Count = 1
 						entry.Inode = uint64(ino.Ino)
 					} else {
 						// If this is a hard link, we reuse the inode number from the first
 						// file with the same fsInode.
-						ino.Ino = uint32(fsToErofsLinkMap[fsIno].Inode)
-						entry.Count = fsToErofsLinkMap[fsIno].Count + 1
+						ino.Ino = uint32(w.linkMap[fsIno].Inode)
+						entry.Count = w.linkMap[fsIno].Count + 1
 					}
 					ino.Size = uint32(size)
 
-					fsToErofsLinkMap[fsIno] = entry
+					w.linkMap[fsIno] = entry
 				} else {
 					return metaSize, dataSize, fmt.Errorf("inode count for %q not found", path)
 				}
@@ -213,20 +214,20 @@ func (w *writer) firstPass() (metaSize, dataSize int64, err error) {
 				}
 				fsIno := getIno(info)
 
-				if entry, ok := fsToErofsLinkMap[fsIno]; ok {
-					if fsToErofsLinkMap[fsIno].Count == 0 {
+				if entry, ok := w.linkMap[fsIno]; ok {
+					if w.linkMap[fsIno].Count == 0 {
 						ino.Ino = nid
 						entry.Count = 1
 						entry.Inode = uint64(ino.Ino)
 					} else {
 						// If this is a hard link, we reuse the inode number from the first
 						// file with the same fsInode.
-						ino.Ino = uint32(fsToErofsLinkMap[fsIno].Inode)
-						entry.Count = fsToErofsLinkMap[fsIno].Count + 1
+						ino.Ino = uint32(w.linkMap[fsIno].Inode)
+						entry.Count = w.linkMap[fsIno].Count + 1
 					}
 					ino.Size = uint64(size)
 
-					fsToErofsLinkMap[fsIno] = entry
+					w.linkMap[fsIno] = entry
 				} else {
 					return metaSize, dataSize, fmt.Errorf("inode count for %q not found", path)
 				}
@@ -381,8 +382,8 @@ func (w *writer) populateInodes() error {
 		} else {
 			nlink = getNLinks(fi)
 			ino := getIno(fi)
-			if _, ok := fsToErofsLinkMap[ino]; !ok {
-				fsToErofsLinkMap[ino] = inodeCount{
+			if _, ok := w.linkMap[ino]; !ok {
+				w.linkMap[ino] = inodeCount{
 					Count: 0,
 				}
 			}
