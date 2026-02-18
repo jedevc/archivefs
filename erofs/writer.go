@@ -138,7 +138,9 @@ func (w *writer) firstPass() (metaSize, dataSize int64, err error) {
 		}
 		_ = data.Close()
 
-		inlined := size <= MaxInlineDataSize
+		// Avoid inlining empty files: the reader expects tailSize != 0 for inline
+		// layout, and MaxInlineDataSize=0 is used to represent '-E noinline_data'.
+		inlined := size > 0 && size <= MaxInlineDataSize
 		if inlined {
 			// if the size of the inode and data exceeds the block size, we need to
 			// pad to the next block boundary before inlining the data.
